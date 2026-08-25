@@ -20,6 +20,11 @@ static async_context_t * volatile lwip_context;
 // lwIP tcpip_task cannot be shutdown, so we block it when we are de-initialized.
 static SemaphoreHandle_t tcpip_task_blocker;
 
+#if configSUPPORT_STATIC_ALLOCATION
+static StaticSemaphore_t init_sem_buffer;
+static StaticSemaphore_t tcpip_task_blocker_buffer;
+#endif
+
 static void tcpip_init_done(void *param) {
     xSemaphoreGive((SemaphoreHandle_t)param);
 }
@@ -30,11 +35,18 @@ bool lwip_freertos_init(async_context_t *context) {
     static bool done_lwip_init;
     if (!done_lwip_init) {
         done_lwip_init = true;
+#if configSUPPORT_STATIC_ALLOCATION
+        SemaphoreHandle_t init_sem = xSemaphoreCreateBinaryStatic(&init_sem_buffer);
+        tcpip_task_blocker = xSemaphoreCreateBinaryStatic(&tcpip_task_blocker_buffer);
+#else
         SemaphoreHandle_t init_sem = xSemaphoreCreateBinary();
         tcpip_task_blocker = xSemaphoreCreateBinary();
+#endif
         tcpip_init(tcpip_init_done, init_sem);
         xSemaphoreTake(init_sem, portMAX_DELAY);
+#if !configSUPPORT_STATIC_ALLOCATION
         vSemaphoreDelete(init_sem);
+#endif
     } else {
         xSemaphoreGive(tcpip_task_blocker);
     }
