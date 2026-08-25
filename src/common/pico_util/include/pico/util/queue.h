@@ -71,12 +71,55 @@ static inline bool queue_init(queue_t *q, uint element_size, uint element_count)
     return queue_init_with_spinlock(q, element_size, element_count, next_striped_spin_lock_num());
 }
 
+/*! \brief Initialise a queue with a specific spinlock, using a caller-provided
+ *         static buffer instead of dynamically allocating one
+ *  \ingroup queue
+ *
+ * \param q Pointer to a queue_t structure, used as a handle
+ * \param static_buffer Pointer to a caller-allocated buffer (e.g. a static or global array)
+ *                       of at least (element_count + 1) * element_size bytes. The buffer is
+ *                       zero-initialised by this function and must remain valid for the
+ *                       lifetime of the queue.
+ * \param element_size Size of each value in the queue
+ * \param element_count Maximum number of entries in the queue
+ * \param spinlock_num The spinlock ID used to protect the queue
+ * \return true if the queue was initialized (always true, since no dynamic allocation occurs)
+ *
+ * \note A queue initialised with this function must not be passed to queue_free(),
+ *       since its buffer was not dynamically allocated.
+ */
+bool queue_init_with_spinlock_static(queue_t *q, uint8_t *static_buffer, uint element_size, uint element_count, uint spinlock_num);
+
+/*! \brief Initialise a queue, allocating a (possibly shared) spinlock, using a
+ *         caller-provided static buffer instead of dynamically allocating one
+ *  \ingroup queue
+ *
+ * \param q Pointer to a queue_t structure, used as a handle
+ * \param static_buffer Pointer to a caller-allocated buffer (e.g. a static or global array)
+ *                       of at least (element_count + 1) * element_size bytes. The buffer is
+ *                       zero-initialised by this function and must remain valid for the
+ *                       lifetime of the queue.
+ * \param element_size Size of each value in the queue
+ * \param element_count Maximum number of entries in the queue
+ * \return true if the queue was initialized (always true, since no dynamic allocation occurs)
+ *
+ * \note A queue initialised with this function must not be passed to queue_free(),
+ *       since its buffer was not dynamically allocated.
+ */
+static inline bool queue_init_static(queue_t *q, uint8_t *static_buffer, uint element_size, uint element_count) {
+    return queue_init_with_spinlock_static(q, static_buffer, element_size, element_count, next_striped_spin_lock_num());
+}
+
 /*! \brief Destroy the specified queue.
  *  \ingroup queue
  *
  * \param q Pointer to a queue_t structure, used as a handle
  *
  * Does not deallocate the queue_t structure itself.
+ *
+ * \note Only call this on a queue initialised via queue_init() or queue_init_with_spinlock().
+ *       Do not call this on a queue initialised via queue_init_static() or
+ *       queue_init_with_spinlock_static(), as its buffer was not dynamically allocated.
  */
 void queue_free(queue_t *q);
 
